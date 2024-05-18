@@ -8,6 +8,7 @@ import numpy as np
 
 def train(make_agent, make_replay, make_env, make_logger, args):
 
+  fns = [bind(make_env, i) for i in range(args.num_envs)]
   agent = make_agent()
   replay = make_replay()
   logger = make_logger()
@@ -64,7 +65,6 @@ def train(make_agent, make_replay, make_env, make_logger, args):
         result['reward_rate'] = (np.abs(rew[1:] - rew[:-1]) >= 0.01).mean()
       epstats.add(result)
 
-  fns = [bind(make_env, i) for i in range(args.num_envs)]
   driver = embodied.Driver(fns, args.driver_parallel)
   driver.on_step(lambda tran, _: step.increment())
   driver.on_step(lambda tran, _: policy_fps.step())

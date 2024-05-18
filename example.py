@@ -45,9 +45,11 @@ def main():
         online=config.replay.online)
 
   def make_env(config, env_id=0):
-    import crafter
+    from suite.cheetah import Cheetah
     from embodied.envs import from_gym
-    env = crafter.Env()
+    from brax.envs.wrappers.gym import GymWrapper
+    env = Cheetah()
+    env = GymWrapper(env)
     env = from_gym.FromGym(env)
     env = dreamerv3.wrap_env(env, config)
     return env

@@ -5,5 +5,5 @@ msgpack
 numpy
 psutil
 ruamel.yaml
-tensorflow-cpu
+tensorflow
 zmq

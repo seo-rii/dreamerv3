@@ -1,3 +1,5 @@
+from typing_extensions import Unpack
+
 from collections import defaultdict, deque
 
 import numpy as np
@@ -85,7 +87,7 @@ class Recency:
   def _sample(self, tree, rng, bfactor=16):
     path = []
     for level, prob in enumerate(tree):
-      segment = prob[*path]
+      segment = prob[Unpack[path]]
       path += (rng.choice(len(segment), p=segment),)
     index = sum(
         index * bfactor ** (len(tree) - level - 1)

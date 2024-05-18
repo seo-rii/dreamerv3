@@ -19,7 +19,7 @@ defaults:
     save_wait: False
 
   jax:
-    platform: gpu
+    platform: cpu
     jit: True
     compute_dtype: bfloat16
     param_dtype: float32
@@ -41,8 +41,8 @@ defaults:
     script: train
     steps: 1e10
     duration: 0
-    num_envs: 16
-    num_envs_eval: 4
+    num_envs: 1
+    num_envs_eval: 1
     expl_until: 0
     log_every: 120
     save_every: 900
@@ -70,7 +70,7 @@ defaults:
     ipv6: False
     usage: {psutil: True, nvsmi: True, gputil: False, malloc: False, gc: False}
     timer: True
-    driver_parallel: True
+    driver_parallel: False
     agent_process: False
     remote_replay: False
 
