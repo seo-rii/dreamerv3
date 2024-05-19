@@ -24,6 +24,7 @@ class Walker2d(PipelineEnv):
             healthy_angle_range=(-1.0, 1.0),
             reset_noise_scale=5e-3,
             exclude_current_positions_from_observation=True,
+            batch_size=1,
             **kwargs
     ):
 
@@ -39,6 +40,7 @@ class Walker2d(PipelineEnv):
         kwargs['backend'] = 'mjx'
         super().__init__(sys=sys, **kwargs)
 
+        self.batch_size = batch_size
         self._forward_reward_weight = forward_reward_weight
         self._ctrl_cost_weight = ctrl_cost_weight
         self._healthy_reward = healthy_reward

@@ -31,7 +31,7 @@ defaults:
     train_devices: [0]
     sync_every: 1
     profiler: False
-    transfer_guard: True
+    transfer_guard: False
     assert_num_devices: -1
     fetch_policy_carry: False
     nvidia_flags: False
@@ -86,6 +86,8 @@ defaults:
     loconav: {size: [64, 64], repeat: 2, camera: -1}
 
   # Agent
+  vector_env: 0
+
   report: True
   report_gradnorms: False
   batch_size: 16

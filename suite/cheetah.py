@@ -19,6 +19,7 @@ class Cheetah(PipelineEnv):
             ctrl_cost_weight=0.1,
             reset_noise_scale=0.1,
             exclude_current_positions_from_observation=True,
+            batch_size=1,
             **kwargs
     ):
         # path = epath.resource_path('brax') / 'envs/assets/half_cheetah.xml'
@@ -50,6 +51,7 @@ class Cheetah(PipelineEnv):
         kwargs['backend'] = 'mjx'
         super().__init__(sys=sys, **kwargs)
 
+        self.batch_size = batch_size
         self._forward_reward_weight = forward_reward_weight
         self._ctrl_cost_weight = ctrl_cost_weight
         self._reset_noise_scale = reset_noise_scale

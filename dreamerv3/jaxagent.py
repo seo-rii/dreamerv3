@@ -378,7 +378,7 @@ class JAXAgent(embodied.Agent):
     return outs
 
   def _init_params(self, obs_space, act_space):
-    B, T = self.config.batch_size, self.config.batch_length
+    B, T, E = self.config.batch_size, self.config.batch_length, self.config.vector_env
     seed = jax.device_put(np.array([self.config.seed, 0], np.uint32))
     data = jax.device_put(self._dummy_batch(self.spaces, (B, T)))
     params = nj.init(self.agent.init_train, static_argnums=[1])(

@@ -122,10 +122,55 @@ class Optimizer:
 
         metrics = {}
 
-        loss, params, grads, aux = nj.grad(
-            wrapped, modules, has_aux=True)(*args, **kwargs)
-        loss, params, grads = eqx.filter_value_and_grad(
-            wrapped, modules, has_aux=True)(*args, **kwargs)
+        def wrapper(*args, **kwargs):
+            accessed, modified = _prerun(fun, *args, **kwargs)
+
+            strs = []
+            for key in keys:
+                if isinstance(key, Module):
+                    matches = key.find()
+                if isinstance(key, str):
+                    pattern = re.compile(f'^{key}(/.*|$)')
+                    matches = [k for k in context() if pattern.match(k)]
+                if not matches:
+                    raise KeyError(
+                        f"Gradient key '{key}' did not match any state entries. "
+                        'List existing entries using print(nj.context().keys()).')
+                strs += matches
+            existing = context().keys()
+            assert all(key in existing for key in strs), (strs, existing)
+            x1 = {k: v for k, v in context().items() if k in strs}
+            x2 = {k: v for k, v in context().items() if k not in strs}
+            assert x1
+
+            for key in x1.keys():
+                if key not in accessed:
+                    raise RuntimeError(
+                        f"Trying to compute gradient with respect to key '{key}' "
+                        'but the differentiated function does not access it.\n'
+                        f'Accessed keys: {list(accessed)}\n'
+                        f'Gradient keys: {list(strs)}')
+            x1 = {k: v for k, v in x1.items() if k in accessed}
+            x2 = {k: v for k, v in x2.items() if k in accessed}
+
+            def forward(x1, x2, *args, **kwargs):
+                before = {**x1, **x2}
+                state, (y, aux) = fun(before, *args, create=False, **kwargs)
+                changes = {k: v for k, v in state.items() if k in modified}
+                return y, (changes, aux)
+
+            backward = jax.value_and_grad(forward, has_aux=True)
+
+            (y, (changes, aux)), dx = backward(
+                x1, x2, *args, seed=seed(None, True), **kwargs)
+            if context().modify:
+                context().update(changes)
+            return (y, x1, dx, aux) if has_aux else (y, x1, dx)
+
+        loss, grads = eqx.filter_value_and_grad(wrapped)(modules, *args, **kwargs)
+        updates, opt_state = self.chain.update(grads, opt_state, modules)
+        model = eqx.apply_updates(modules, updates)
+
         if self.scaling:
             loss /= self.grad_scale.read()
         if not isinstance(modules, (list, tuple)):

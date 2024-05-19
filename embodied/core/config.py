@@ -118,17 +118,20 @@ class Config(dict):
       if not keys:
         raise KeyError(f'Unknown key or pattern {key}.')
       for key in keys:
-        old = result[key]
         try:
-          if isinstance(old, int) and isinstance(new, float):
-            if float(int(new)) != new:
-              message = f"Cannot convert fractional float {new} to int."
-              raise ValueError(message)
-          result[key] = type(old)(new)
-        except (ValueError, TypeError):
-          raise TypeError(
-              f"Cannot convert '{new}' to type '{type(old).__name__}' " +
-              f"for key '{key}' with previous value '{old}'.")
+          old = result[key]
+          try:
+            if isinstance(old, int) and isinstance(new, float):
+              if float(int(new)) != new:
+                message = f"Cannot convert fractional float {new} to int."
+                raise ValueError(message)
+            result[key] = type(old)(new)
+          except (ValueError, TypeError):
+            raise TypeError(
+                f"Cannot convert '{new}' to type '{type(old).__name__}' " +
+                f"for key '{key}' with previous value '{old}'.")
+        except KeyError:
+          result[key] = new
     return type(self)(result)
 
   def _flatten(self, mapping):

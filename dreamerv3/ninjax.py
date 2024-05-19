@@ -159,7 +159,7 @@ def init(fun, **jit_kwargs):
     state, out = fun(*args, create=True, modify=True, ignore=True, **kwargs)
     del out
     return state
-  return jax.jit(wrapper, **jit_kwargs)
+  return wrapper
 
 
 @jax.named_scope('seed')
