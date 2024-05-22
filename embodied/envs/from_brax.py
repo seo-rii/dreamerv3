@@ -7,7 +7,6 @@ import jax
 from gym import spaces
 from gym.vector import utils
 from brax.envs.base import PipelineEnv
-from brax.io import image
 from typing import Optional
 
 
@@ -70,11 +69,11 @@ class FromBrax(embodied.Env):
 
     def reset(self):
         self._state, obs, self._key = self._reset(self._key)
-        return obs
+        return self.render()
 
     def _step(self, action):
         self._state, obs, reward, done, info = self.__step(self._state, action)
-        return obs, reward, done, info
+        return self.render(), reward, done, info
 
     def seed(self, seed: int = 0):
         self._key = jax.random.key(seed)
@@ -121,7 +120,6 @@ class FromBrax(embodied.Env):
         obs = self._flatten(obs)
         obs = {k: np.asarray(v) for k, v in obs.items()}
         obs.update(
-            image=self.render(),
             reward=np.float32(reward),
             is_first=is_first,
             is_last=is_last,
@@ -133,7 +131,7 @@ class FromBrax(embodied.Env):
             sys, state = self._env.sys, self._state
             if state is None:
                 raise RuntimeError('must call reset or step before rendering')
-            return image.render_array(sys, state.pipeline_state, height, width)
+            return self._env.render([state.pipeline_state], width=64, height=64)[0]
         else:
             return super().render(mode=mode)
 

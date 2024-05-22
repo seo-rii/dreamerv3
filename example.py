@@ -8,9 +8,12 @@ warnings.filterwarnings('ignore', '.*truncated to dtype int32.*')
 
 
 def main():
+    # import os
+    # os.environ["MUJOCO_GL"] = "egl"
+    # os.environ["MUJOCO_RENDERER"] = "egl"
     config = embodied.Config(dreamerv3.Agent.configs['defaults'])
     config = config.update({
-        **dreamerv3.Agent.configs['size100m'],
+        **dreamerv3.Agent.configs['size12m'],
         'logdir': f'~/logdir/{embodied.timestamp()}-example',
         'run.train_ratio': 32,
     })
@@ -64,10 +67,10 @@ def main():
     def make_env(config, env_id=0):
         from suite.cheetah import Cheetah
         from embodied.envs import from_brax
+
         env = Cheetah(batch_size=max(1, config.vector_env))
         env = from_brax.FromBrax(env, vector_env=config.vector_env)
-        env.reset()
-        print(env.render().shape)
+
         env = dreamerv3.wrap_env(env, config)
         return env
 
