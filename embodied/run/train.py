@@ -65,7 +65,7 @@ def train(make_agent, make_replay, make_env, make_logger, args):
         result['reward_rate'] = (np.abs(rew[1:] - rew[:-1]) >= 0.01).mean()
       epstats.add(result)
 
-  driver = embodied.Driver(fns, args.driver_parallel)
+  driver = embodied.Driver(fns, args.driver_parallel, vector_env=args.vector_env)
   driver.on_step(lambda tran, _: step.increment())
   driver.on_step(lambda tran, _: policy_fps.step())
   driver.on_step(replay.add)

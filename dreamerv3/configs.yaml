@@ -86,7 +86,7 @@ defaults:
     loconav: {size: [64, 64], repeat: 2, camera: -1}
 
   # Agent
-  vector_env: 0
+  vector_env: 7
 
   report: True
   report_gradnorms: False
@@ -148,9 +148,9 @@ defaults:
   slowtar: False
 
 size12m: &size12m
-  dyn.rssm: {deter: 2048, hidden: 256, classes: 16}
-  .*\.depth: 16
-  .*\.units: 256
+  dyn.rssm: {deter: 8, hidden: 4, classes: 2}
+  .*\.depth: 2
+  .*\.units: 2
 
 size25m: &size25m
   dyn.rssm: {deter: 3072, hidden: 384, classes: 24}

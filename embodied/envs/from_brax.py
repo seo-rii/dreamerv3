@@ -5,7 +5,6 @@ import gym
 import numpy as np
 import jax
 from gym import spaces
-from gym.vector import utils
 from brax.envs.base import PipelineEnv
 from typing import Optional
 
@@ -13,7 +12,7 @@ from typing import Optional
 class FromBrax(embodied.Env):
 
     def __init__(self, env: PipelineEnv, obs_key='image', act_key='action', seed: int = 0,
-                 backend: Optional[str] = None, vector_env: int = 0, **kwargs):
+                 backend: Optional[str] = None, vector_env: int = 1, **kwargs):
         self._env = env
         self.metadata = {
             'render.modes': ['human', 'rgb_array'],
@@ -25,37 +24,33 @@ class FromBrax(embodied.Env):
         self.num_envs = vector_env
 
         raw_space = spaces.Box(low=0, high=255, shape=(64, 64, 3), dtype=np.uint8)
-        if self.num_envs > 0:
-            self.observation_space = utils.batch_space(raw_space, self.num_envs)
 
-            action = jax.tree_map(np.array, self._env.sys.actuator.ctrl_range)
-            action_space = spaces.Box(action[:, 0], action[:, 1], dtype='float32')
-            self.action_space = utils.batch_space(action_space, self.num_envs)
-        else:
-            self.observation_space = raw_space
+        self.observation_space = raw_space
 
-            action = jax.tree_map(np.array, self._env.sys.actuator.ctrl_range)
-            self.action_space = spaces.Box(action[:, 0], action[:, 1], dtype='float32')
+        action = jax.tree_map(np.array, self._env.sys.actuator.ctrl_range)
+        self.action_space = spaces.Box(action[:, 0], action[:, 1], dtype='float32')
 
         self._obs_dict = hasattr(self.observation_space, 'spaces')
         self._act_dict = hasattr(self.action_space, 'spaces')
 
         self._obs_key = obs_key
         self._act_key = act_key
-        self._done = True
+        self._done = np.zeros(vector_env, dtype=bool)
         self._info = None
 
         def reset(key):
-            key1, key2 = jax.random.split(key)
-            state = self._env.reset(key2)
-            return state, state.obs, key1
+            key1, *keys = jax.random.split(key, num=self.num_envs + 1)
+            keys = jax.numpy.array(keys)
+            states = jax.vmap(lambda x: self._env.reset(x))(keys)
+            return states, jax.vmap(lambda x: x.obs)(states), key1
 
         self._reset = jax.jit(reset, backend=self.backend)
 
-        def step(state, action):
-            state = self._env.step(state, action)
-            info = {**state.metrics, **state.info}
-            return state, state.obs, state.reward, state.done, info
+        def step(states, action):
+            states = jax.vmap(lambda x, y: self._env.step(x, y))(states, action)
+            info = jax.vmap(lambda x: {**x.metrics, **x.info})(states)
+            return states, jax.vmap(lambda x: x.obs)(states), jax.vmap(lambda x: x.reward)(states), \
+                jax.vmap(lambda x: x.done)(states), info
 
         self.__step = jax.jit(step, backend=self.backend)
 
@@ -99,39 +94,54 @@ class FromBrax(embodied.Env):
         return spaces
 
     def step(self, action):
-        if action['reset'] or self._done:
-            self._done = False
+        reset_mask = action['reset'] | self._done.astype('bool')
+        if np.any(reset_mask):
+            self._done[reset_mask] = False
             obs = self.reset()
-            return self._obs(obs, 0.0, is_first=True)
+            return self._obs(obs, np.zeros(self.num_envs), is_first=reset_mask)
+
         if self._act_dict:
             action = self._unflatten(action)
         else:
             action = action[self._act_key]
+
         obs, reward, self._done, self._info = self._step(action)
-        return self._obs(
-            obs, reward,
-            is_last=bool(self._done),
-            is_terminal=bool(self._info.get('is_terminal', self._done)))
+
+        is_last = np.array(self._done, dtype=bool)
+        is_terminal = np.array([self._info.get(i, {}).get('is_terminal', d) for i, d in enumerate(self._done)],
+                               dtype=bool)
+
+        return self._obs(obs, reward, is_last=is_last, is_terminal=is_terminal)
 
     def _obs(
-            self, obs, reward, is_first=False, is_last=False, is_terminal=False):
+            self, obs, reward, is_first=None, is_last=None, is_terminal=None):
         if not self._obs_dict:
             obs = {self._obs_key: obs}
         obs = self._flatten(obs)
         obs = {k: np.asarray(v) for k, v in obs.items()}
         obs.update(
-            reward=np.float32(reward),
-            is_first=is_first,
-            is_last=is_last,
-            is_terminal=is_terminal)
+            reward=np.asarray(reward, dtype=np.float32),
+            is_first=is_first if is_first is not None else np.zeros(self.num_envs, dtype=bool),
+            is_last=is_last if is_last is not None else np.zeros(self.num_envs, dtype=bool),
+            is_terminal=is_terminal if is_terminal is not None else np.zeros(self.num_envs, dtype=bool))
         return obs
 
     def _render(self, mode='rgb_array', width=64, height=64):
         if mode == 'rgb_array':
-            sys, state = self._env.sys, self._state
-            if state is None:
+            sys, states = self._env.sys, self._state
+            if states is None:
                 raise RuntimeError('must call reset or step before rendering')
-            return self._env.render([state.pipeline_state], width=64, height=64)[0]
+
+            class VState:
+                def __init__(self, q, qd):
+                    self.q = q
+                    self.qd = qd
+
+            q = states.pipeline_state.q
+            qd = states.pipeline_state.qd
+            states = [VState(q[i], qd[i]) for i in range(self.num_envs)]
+
+            return jax.numpy.array(self._env.render(states, width=width, height=height))
         else:
             return super().render(mode=mode)
 

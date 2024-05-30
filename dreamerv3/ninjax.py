@@ -160,6 +160,7 @@ def init(fun, **jit_kwargs):
     del out
     return state
   return wrapper
+  return jax.jit(wrapper, **jit_kwargs)
 
 
 @jax.named_scope('seed')

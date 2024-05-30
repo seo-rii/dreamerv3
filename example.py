@@ -21,7 +21,7 @@ def main():
     try:
         vector_env = config.vector_env
     except AttributeError:
-        vector_env = 0
+        vector_env = 1
         config = config.update({'vector_env': vector_env})
 
     print('Logdir:', config.logdir)
@@ -32,17 +32,9 @@ def main():
     def make_agent(config):
         env = make_env(config)
         # remove first dimension by env_batch to get single env obs_space
-        if config.vector_env > 1:
-            obs_space = {}
-            for k, v in env.obs_space.items():
-                obs_space[k] = embodied.core.Space(v.dtype, v.shape[1:])
 
-            act_space = {}
-            for k, v in env.act_space.items():
-                act_space[k] = embodied.core.Space(v.dtype, v.shape[1:])
-        else:
-            obs_space = env.obs_space
-            act_space = env.act_space
+        obs_space = env.obs_space
+        act_space = env.act_space
 
         agent = dreamerv3.Agent(obs_space, act_space, config)
         env.close()
